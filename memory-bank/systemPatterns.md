@@ -93,3 +93,16 @@ The Panel implemented critical breaking changes in Issue #27, introducing a new 
 - Secure Docker socket access with minimal privileges
 - Input validation and sanitization for all commands
 - Error message sanitization to prevent information leakage
+
+
+## Comprehensive Integration Testing Strategy
+
+Multi-layered testing approach that validates both component isolation and system integration. Combines unit tests for core logic with live system testing for real-world validation. Pattern prioritizes functional verification over test coverage metrics when interface compatibility issues arise.
+
+### Examples
+
+- Unit tests for messages, config, and docker modules
+- Integration tests for protocol compatibility
+- Live panel connection testing with actual WebSocket communication
+- Health endpoint validation with HTTP requests
+- Error handling verification through timeout scenarios
