@@ -9,7 +9,7 @@ import (
 type MessageType string
 
 const (
-	// Incoming message types (from panel)
+	// Legacy incoming message types (from panel) - maintain backwards compatibility
 	TypeSystemInfoRequest MessageType = "system_info_request"
 	TypeServerCreate      MessageType = "server_create"
 	TypeServerStart       MessageType = "server_start"
@@ -20,13 +20,18 @@ const (
 	TypeFileRead          MessageType = "file_read"
 	TypeFileWrite         MessageType = "file_write"
 
-	// Outgoing message types (to panel)
+	// Legacy outgoing message types (to panel)
 	TypeHeartbeat    MessageType = "heartbeat"
 	TypeSystemInfo   MessageType = "system_info"
 	TypeServerStatus MessageType = "server_status"
 	TypeServerOutput MessageType = "server_output"
 	TypeFileContent  MessageType = "file_content"
 	TypeError        MessageType = "error"
+
+	// New Panel Issue #27 message types
+	TypeCommand  MessageType = "command"
+	TypeResponse MessageType = "response"
+	TypeEvent    MessageType = "event"
 )
 
 // Message represents a WebSocket message
@@ -168,4 +173,57 @@ func (m *Message) UnmarshalData(v interface{}) error {
 		return nil
 	}
 	return json.Unmarshal(m.Data, v)
+}
+
+// PanelCommand represents the new Panel Issue #27 command format
+type PanelCommand struct {
+	ID        string                 `json:"id"`
+	Type      string                 `json:"type"`      // Always "command"
+	Timestamp string                 `json:"timestamp"` // ISO 8601 timestamp
+	AgentID   string                 `json:"agentId"`
+	Action    string                 `json:"action"`    // start_server, stop_server, etc.
+	ServerID  string                 `json:"serverId,omitempty"`
+	Payload   map[string]interface{} `json:"payload,omitempty"`
+}
+
+// AgentResponse represents the standardized response format
+type AgentResponse struct {
+	ID        string                 `json:"id"`
+	Type      string                 `json:"type"`    // Always "response"
+	Timestamp string                 `json:"timestamp"`
+	Success   bool                   `json:"success"`
+	Message   string                 `json:"message,omitempty"`
+	Data      map[string]interface{} `json:"data,omitempty"`
+	Error     *ErrorInfo             `json:"error,omitempty"`
+}
+
+// ErrorInfo represents structured error information
+type ErrorInfo struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+// AgentEvent represents events sent from Agent to Panel
+type AgentEvent struct {
+	Type      string                 `json:"type"`      // Always "event"
+	Timestamp string                 `json:"timestamp"`
+	Event     string                 `json:"event"`     // server_status_changed, server_log, etc.
+	Data      map[string]interface{} `json:"data"`
+}
+
+// ParsePanelCommand parses a PanelCommand from JSON bytes
+func ParsePanelCommand(data []byte) (*PanelCommand, error) {
+	var cmd PanelCommand
+	err := json.Unmarshal(data, &cmd)
+	return &cmd, err
+}
+
+// ToJSON converts an AgentResponse to JSON bytes
+func (r *AgentResponse) ToJSON() ([]byte, error) {
+	return json.Marshal(r)
+}
+
+// ToJSON converts an AgentEvent to JSON bytes
+func (e *AgentEvent) ToJSON() ([]byte, error) {
+	return json.Marshal(e)
 }

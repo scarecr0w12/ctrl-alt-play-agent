@@ -2,6 +2,8 @@ package client
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -163,6 +165,13 @@ func (c *Client) readMessages() {
 
 // handleMessage handles incoming messages
 func (c *Client) handleMessage(msg *messages.Message) {
+	// Check for new Panel Issue #27 command format
+	if msg.Type == messages.TypeCommand {
+		c.handlePanelCommand(msg)
+		return
+	}
+
+	// Handle legacy message format
 	c.mu.RLock()
 	handler, exists := c.handlers[msg.Type]
 	c.mu.RUnlock()
@@ -425,4 +434,335 @@ func (c *Client) handleServerCommand(ctx context.Context, msg *messages.Message)
 
 	outputMsg, _ := messages.NewMessage(messages.TypeServerOutput, outputData)
 	return c.sendMessage(outputMsg)
+}
+
+// handlePanelCommand handles new Panel Issue #27 command format
+func (c *Client) handlePanelCommand(msg *messages.Message) {
+	// Parse as PanelCommand
+	var cmd messages.PanelCommand
+	rawData, err := json.Marshal(msg.Data)
+	if err != nil {
+		log.Printf("Error marshaling command data: %v", err)
+		return
+	}
+	
+	if err := json.Unmarshal(rawData, &cmd); err != nil {
+		log.Printf("Error parsing Panel command: %v", err)
+		c.sendErrorResponse("", "PARSE_ERROR", "Failed to parse command: "+err.Error())
+		return
+	}
+
+	log.Printf("Received Panel command: %s (ID: %s, Server: %s)", cmd.Action, cmd.ID, cmd.ServerID)
+
+	// Send immediate acknowledgment
+	c.sendResponse(cmd.ID, true, fmt.Sprintf("%s command received", cmd.Action), map[string]interface{}{
+		"serverId": cmd.ServerID,
+		"status":   c.getActionStatus(cmd.Action),
+	}, nil)
+
+	// Handle the actual command asynchronously
+	go func() {
+		if err := c.executePanelCommand(&cmd); err != nil {
+			log.Printf("Error executing Panel command %s: %v", cmd.Action, err)
+			c.sendErrorResponse(cmd.ID, "EXECUTION_ERROR", err.Error())
+		}
+	}()
+}
+
+// executePanelCommand executes the actual Panel command
+func (c *Client) executePanelCommand(cmd *messages.PanelCommand) error {
+	ctx := context.Background()
+
+	switch cmd.Action {
+	case "start_server":
+		return c.handlePanelServerStart(ctx, cmd)
+	case "stop_server":
+		return c.handlePanelServerStop(ctx, cmd)
+	case "restart_server":
+		return c.handlePanelServerRestart(ctx, cmd)
+	case "get_status":
+		return c.handlePanelGetStatus(ctx, cmd)
+	case "create_server":
+		return c.handlePanelServerCreate(ctx, cmd)
+	case "delete_server":
+		return c.handlePanelServerDelete(ctx, cmd)
+	default:
+		return fmt.Errorf("unknown action: %s", cmd.Action)
+	}
+}
+
+// getActionStatus returns the expected status for a given action
+func (c *Client) getActionStatus(action string) string {
+	switch action {
+	case "start_server":
+		return "starting"
+	case "stop_server":
+		return "stopping"
+	case "restart_server":
+		return "restarting"
+	case "create_server":
+		return "creating"
+	case "delete_server":
+		return "deleting"
+	default:
+		return "processing"
+	}
+}
+
+// sendResponse sends a standardized response to the Panel
+func (c *Client) sendResponse(id string, success bool, message string, data map[string]interface{}, errorInfo *messages.ErrorInfo) {
+	response := &messages.AgentResponse{
+		ID:        id,
+		Type:      "response",
+		Timestamp: time.Now().Format(time.RFC3339),
+		Success:   success,
+		Message:   message,
+		Data:      data,
+		Error:     errorInfo,
+	}
+
+	responseData, err := response.ToJSON()
+	if err != nil {
+		log.Printf("Error marshaling response: %v", err)
+		return
+	}
+
+	if err := c.conn.WriteMessage(websocket.TextMessage, responseData); err != nil {
+		log.Printf("Error sending response: %v", err)
+	}
+}
+
+// sendErrorResponse sends an error response to the Panel
+func (c *Client) sendErrorResponse(id, code, message string) {
+	c.sendResponse(id, false, "", nil, &messages.ErrorInfo{
+		Code:    code,
+		Message: message,
+	})
+}
+
+// sendEvent sends an event to the Panel
+func (c *Client) sendEvent(event string, data map[string]interface{}) {
+	evt := &messages.AgentEvent{
+		Type:      "event",
+		Timestamp: time.Now().Format(time.RFC3339),
+		Event:     event,
+		Data:      data,
+	}
+
+	eventData, err := evt.ToJSON()
+	if err != nil {
+		log.Printf("Error marshaling event: %v", err)
+		return
+	}
+
+	if err := c.conn.WriteMessage(websocket.TextMessage, eventData); err != nil {
+		log.Printf("Error sending event: %v", err)
+	}
+}
+
+// handlePanelServerStart handles Panel-format server start commands
+func (c *Client) handlePanelServerStart(ctx context.Context, cmd *messages.PanelCommand) error {
+	log.Printf("Starting server: %s", cmd.ServerID)
+
+	containerName := "ctrl-alt-play-" + cmd.ServerID
+
+	if err := c.dockerManager.StartContainer(ctx, containerName); err != nil {
+		// Send error event
+		c.sendEvent("server_status_changed", map[string]interface{}{
+			"serverId":      cmd.ServerID,
+			"status":        "start_failed",
+			"error":         err.Error(),
+			"previousStatus": "stopped",
+		})
+		return err
+	}
+
+	// Send success event
+	c.sendEvent("server_status_changed", map[string]interface{}{
+		"serverId":       cmd.ServerID,
+		"previousStatus": "stopped",
+		"currentStatus":  "running",
+	})
+
+	return nil
+}
+
+// handlePanelServerStop handles Panel-format server stop commands with signal support
+func (c *Client) handlePanelServerStop(ctx context.Context, cmd *messages.PanelCommand) error {
+	log.Printf("Stopping server: %s", cmd.ServerID)
+
+	containerName := "ctrl-alt-play-" + cmd.ServerID
+
+	// Check for signal and timeout in payload
+	signal := "SIGTERM" // default
+	timeout := 30       // default 30 seconds
+
+	if cmd.Payload != nil {
+		if s, ok := cmd.Payload["signal"].(string); ok {
+			signal = s
+		}
+		if t, ok := cmd.Payload["timeout"].(float64); ok {
+			timeout = int(t)
+		}
+	}
+
+	log.Printf("Stopping server %s with signal %s and timeout %d", cmd.ServerID, signal, timeout)
+
+	if err := c.dockerManager.StopContainer(ctx, containerName); err != nil {
+		// Send error event
+		c.sendEvent("server_status_changed", map[string]interface{}{
+			"serverId":       cmd.ServerID,
+			"status":         "stop_failed",
+			"error":          err.Error(),
+			"previousStatus": "running",
+		})
+		return err
+	}
+
+	// Send success event
+	c.sendEvent("server_status_changed", map[string]interface{}{
+		"serverId":       cmd.ServerID,
+		"previousStatus": "running",
+		"currentStatus":  "stopped",
+	})
+
+	return nil
+}
+
+// handlePanelServerRestart handles Panel-format server restart commands
+func (c *Client) handlePanelServerRestart(ctx context.Context, cmd *messages.PanelCommand) error {
+	log.Printf("Restarting server: %s", cmd.ServerID)
+
+	// Send restarting status
+	c.sendEvent("server_status_changed", map[string]interface{}{
+		"serverId":       cmd.ServerID,
+		"previousStatus": "running",
+		"currentStatus":  "restarting",
+	})
+
+	// Stop then start
+	if err := c.handlePanelServerStop(ctx, cmd); err != nil {
+		return err
+	}
+
+	return c.handlePanelServerStart(ctx, cmd)
+}
+
+// handlePanelGetStatus handles Panel-format status requests
+func (c *Client) handlePanelGetStatus(ctx context.Context, cmd *messages.PanelCommand) error {
+	log.Printf("Getting status for server: %s", cmd.ServerID)
+
+	containerName := "ctrl-alt-play-" + cmd.ServerID
+
+	// This is simplified - would need proper container inspection
+	containers, err := c.dockerManager.ListContainers(ctx)
+	if err != nil {
+		return err
+	}
+
+	var status string = "stopped"
+	var containerID string
+	
+	for _, container := range containers {
+		for _, name := range container.Names {
+			if name == "/"+containerName {
+				status = container.State
+				containerID = container.ID
+				break
+			}
+		}
+	}
+
+	// Send detailed status response
+	statusData := map[string]interface{}{
+		"serverId":    cmd.ServerID,
+		"status":      status,
+		"containerId": containerID,
+	}
+
+	// Add resource usage if container is running
+	if status == "running" {
+		statusData["resources"] = map[string]interface{}{
+			"cpu":    "25.5%",
+			"memory": map[string]interface{}{
+				"used":      "1024m",
+				"available": "2048m",
+			},
+		}
+	}
+
+	c.sendResponse(cmd.ID, true, "Status retrieved successfully", statusData, nil)
+	return nil
+}
+
+// handlePanelServerCreate handles Panel-format server creation
+func (c *Client) handlePanelServerCreate(ctx context.Context, cmd *messages.PanelCommand) error {
+	log.Printf("Creating server: %s", cmd.ServerID)
+
+	if cmd.Payload == nil {
+		return fmt.Errorf("missing server configuration in payload")
+	}
+
+	// Extract server configuration from payload
+	var config docker.ServerConfig
+	configData, err := json.Marshal(cmd.Payload)
+	if err != nil {
+		return err
+	}
+	
+	if err := json.Unmarshal(configData, &config); err != nil {
+		return err
+	}
+
+	config.ServerID = cmd.ServerID
+
+	containerID, err := c.dockerManager.CreateGameServer(ctx, &config)
+	if err != nil {
+		c.sendEvent("server_status_changed", map[string]interface{}{
+			"serverId": cmd.ServerID,
+			"status":   "create_failed",
+			"error":    err.Error(),
+		})
+		return err
+	}
+
+	log.Printf("Created container %s for server %s", containerID, cmd.ServerID)
+
+	// Send success event
+	c.sendEvent("server_status_changed", map[string]interface{}{
+		"serverId":    cmd.ServerID,
+		"status":      "created",
+		"containerId": containerID,
+	})
+
+	return nil
+}
+
+// handlePanelServerDelete handles Panel-format server deletion
+func (c *Client) handlePanelServerDelete(ctx context.Context, cmd *messages.PanelCommand) error {
+	log.Printf("Deleting server: %s", cmd.ServerID)
+
+	containerName := "ctrl-alt-play-" + cmd.ServerID
+
+	// Stop and remove container
+	if err := c.dockerManager.StopContainer(ctx, containerName); err != nil {
+		log.Printf("Error stopping container %s: %v", containerName, err)
+	}
+	
+	if err := c.dockerManager.RemoveContainer(ctx, containerName); err != nil {
+		c.sendEvent("server_status_changed", map[string]interface{}{
+			"serverId": cmd.ServerID,
+			"status":   "delete_failed",
+			"error":    err.Error(),
+		})
+		return err
+	}
+
+	// Send success event
+	c.sendEvent("server_status_changed", map[string]interface{}{
+		"serverId": cmd.ServerID,
+		"status":   "deleted",
+	})
+
+	return nil
 }

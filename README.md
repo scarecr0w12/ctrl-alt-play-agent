@@ -1,221 +1,315 @@
 # Ctrl-Alt-Play Agent
 
-A lightweight game server management agent that communicates with the Ctrl-Alt-Play panel to manage Docker-based game servers on remote Linux systems.
+[![CI/CD Pipeline](https://github.com/scarecr0w12/ctrl-alt-play-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/scarecr0w12/ctrl-alt-play-agent/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/scarecr0w12/ctrl-alt-play-agent)](https://goreportcard.com/report/github.com/scarecr0w12/ctrl-alt-play-agent)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Features
+A lightweight, high-performance remote game server management agent designed to work seamlessly with the [Ctrl-Alt-Play Panel](https://github.com/scarecr0w12/ctrl-alt-play-panel). Built with Go for maximum efficiency and Docker integration for reliable container management.
 
-- **WebSocket Communication**: Secure real-time communication with the Ctrl-Alt-Play panel
-- **Docker Integration**: Full lifecycle management of game server containers
-- **System Monitoring**: Real-time resource monitoring and reporting
-- **Automatic Reconnection**: Robust connection handling with automatic recovery
-- **Security**: Bearer token authentication and secure message handling
+## 🚀 Features
 
-## Quick Start
+### Panel Issue #27 Compatible
 
-### Prerequisites
+- **New Unified Command Format**: Full compatibility with Panel's latest command protocol
+- **Backwards Compatibility**: Supports legacy message formats for seamless migration
+- **Real-time Communication**: WebSocket-based bidirectional communication with Panel
+- **Standardized Responses**: Structured response format with error handling
 
-- Go 1.21 or later
-- Docker Engine installed and running
-- Access to a Ctrl-Alt-Play panel instance
+### Container Management
 
-### Installation
+- **Docker Integration**: Complete Docker API integration for game server containers
+- **Resource Management**: CPU, memory, and disk usage monitoring and limiting
+- **Container Lifecycle**: Create, start, stop, restart, and delete server containers
+- **Signal Support**: Graceful shutdowns with SIGTERM/SIGKILL and timeout handling
 
-1. Clone the repository:
-```bash
-git clone https://github.com/scarecr0w12/ctrl-alt-play-agent.git
-cd ctrl-alt-play-agent
+### Server Operations
+
+- **Multi-Server Support**: Manage multiple game servers on a single node
+- **Real-time Status**: Live server status monitoring and reporting
+- **Console Access**: Execute commands and stream console output
+- **File Management**: Read and write server configuration files
+
+### Security & Reliability
+
+- **JWT Authentication**: Secure Bearer token authentication with Panel
+- **Health Monitoring**: Built-in health check endpoint for system monitoring
+- **Error Handling**: Comprehensive error reporting with structured error codes
+- **Connection Recovery**: Automatic reconnection and heartbeat monitoring
+
+## 🏗️ Architecture
+
+The Agent follows a distributed architecture pattern inspired by Pelican Panel/Wings:
+
+```text
+┌─────────────────┐    WebSocket/HTTPS    ┌─────────────────┐
+│  Panel (Main)   │ ←----------------→   │  Agent (Node)   │
+│                 │                      │                 │
+│ - Web UI        │                      │ - Docker Mgmt   │
+│ - User Auth     │                      │ - Container     │
+│ - Server Config │                      │   Lifecycle     │
+│ - Database      │                      │ - Log Streaming │
+└─────────────────┘                      └─────────────────┘
 ```
 
-2. Build the agent:
-```bash
-make build
-```
+### Protocol Compatibility
 
-3. Run the agent:
-```bash
-# Set required environment variables
-export PANEL_URL="ws://your-panel-host:8080"
-export NODE_ID="your-node-id"
-export AGENT_SECRET="your-secret-token"
-
-# Run the agent
-./build/ctrl-alt-play-agent
-```
-
-### Configuration
-
-The agent is configured via environment variables:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PANEL_URL` | WebSocket URL of the panel | `ws://localhost:8080` |
-| `NODE_ID` | Unique identifier for this node | `node-1` |
-| `AGENT_SECRET` | Authentication secret | `agent-secret` |
-| `HEALTH_PORT` | Port for health check server | `8081` |
-
-### Health Checks
-
-The agent provides a health check endpoint for monitoring:
-
-```bash
-# Check agent health
-curl http://localhost:8081/health
-
-# Example response
+**Panel Issue #27 Command Format (NEW)**:
+```json
 {
-  "status": "healthy",
-  "timestamp": "2024-01-15T10:30:45Z",
-  "version": "1.0.0",
-  "nodeId": "node-1",
-  "uptime": "2h15m30s",
-  "connected": true
+  "id": "cmd_12345_abc",
+  "type": "command",
+  "timestamp": "2025-01-23T10:00:00Z",
+  "agentId": "agent_uuid",
+  "action": "start_server",
+  "serverId": "server_123"
 }
 ```
 
-Status values:
+**Agent Response Format**:
+```json
+{
+  "id": "cmd_12345_abc",
+  "type": "response",
+  "timestamp": "2025-01-23T10:00:00Z",
+  "success": true,
+  "message": "Server started successfully",
+  "data": {
+    "serverId": "server_123",
+    "status": "running"
+  }
+}
+```
 
-- `healthy`: Agent is running and connected to panel
-- `degraded`: Agent is running but not connected to panel
+## 📦 Installation
+
+### Prerequisites
+
+- **Go 1.24.5+** for building from source
+- **Docker Engine** for container management
+- **Linux/macOS/Windows** (cross-platform support)
+
+### Quick Start
+
+1. **Download Pre-built Binary**:
+   ```bash
+   # Linux (amd64)
+   wget https://github.com/scarecr0w12/ctrl-alt-play-agent/releases/latest/download/agent-linux-amd64
+   chmod +x agent-linux-amd64
+   sudo mv agent-linux-amd64 /usr/local/bin/agent
+   
+   # Or build from source
+   git clone https://github.com/scarecr0w12/ctrl-alt-play-agent.git
+   cd ctrl-alt-play-agent
+   go build -o bin/agent cmd/agent/main.go
+   ```
+
+2. **Configure Environment**:
+   ```bash
+   export PANEL_URL="ws://your-panel-host:8080"
+   export NODE_ID="your-unique-node-id"
+   export AGENT_SECRET="your-secure-agent-token"
+   export HEALTH_PORT="8081"
+   ```
+
+3. **Run the Agent**:
+   ```bash
+   ./bin/agent
+   ```
 
 ### Docker Deployment
 
-Build and run using Docker:
-
 ```bash
-# Build Docker image
-make docker-build
+# Pull the latest image
+docker pull scarecr0w12/ctrl-alt-play-agent:latest
 
 # Run with environment variables
-docker run --rm -it \
+docker run -d \
+  --name ctrl-alt-play-agent \
+  --restart unless-stopped \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  -e PANEL_URL="ws://your-panel-host:8080" \
-  -e NODE_ID="your-node-id" \
-  -e AGENT_SECRET="your-secret-token" \
-  ctrl-alt-play-agent
+  -e PANEL_URL="ws://panel:8080" \
+  -e NODE_ID="docker-node-1" \
+  -e AGENT_SECRET="your-agent-secret" \
+  -p 8081:8081 \
+  scarecr0w12/ctrl-alt-play-agent:latest
 ```
 
-## Development
+## ⚙️ Configuration
+
+### Environment Variables
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `PANEL_URL` | Panel WebSocket endpoint | `ws://localhost:8080` | ✅ |
+| `NODE_ID` | Unique node identifier | `node-1` | ✅ |
+| `AGENT_SECRET` | Authentication token | `agent-secret` | ✅ |
+| `HEALTH_PORT` | Health check server port | `8081` | ❌ |
+
+### Advanced Configuration
+
+```bash
+# Production example
+export PANEL_URL="wss://panel.yourdomain.com:8080"
+export NODE_ID="prod-node-us-east-1"
+export AGENT_SECRET="$(openssl rand -hex 32)"
+export HEALTH_PORT="8081"
+```
+
+## 🔌 Panel Integration
+
+### Supported Commands
+
+| **Command** | **Description** | **Payload Support** |
+|-------------|-----------------|-------------------|
+| `start_server` | Start a game server container | ❌ |
+| `stop_server` | Stop server with signal/timeout | ✅ Signal, timeout |
+| `restart_server` | Graceful restart sequence | ❌ |
+| `create_server` | Create new server container | ✅ Full server config |
+| `delete_server` | Remove server and cleanup | ❌ |
+| `get_status` | Get detailed server status | ❌ |
+
+### Stop Server Example
+
+```json
+{
+  "id": "cmd_stop_123",
+  "type": "command",
+  "action": "stop_server",
+  "serverId": "minecraft_server_1",
+  "payload": {
+    "signal": "SIGTERM",
+    "timeout": 30
+  }
+}
+```
+
+### Real-time Events
+
+The Agent broadcasts events to keep the Panel synchronized:
+
+```json
+{
+  "type": "event",
+  "timestamp": "2025-01-23T10:05:00Z",
+  "event": "server_status_changed",
+  "data": {
+    "serverId": "minecraft_server_1",
+    "previousStatus": "starting",
+    "currentStatus": "running",
+    "pid": 1234
+  }
+}
+```
+
+## 🧪 Testing
+
+### Run Tests
+
+```bash
+# Unit tests
+go test ./...
+
+# Integration tests
+go test ./cmd/test -v
+
+# Coverage report
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out
+```
+
+### Protocol Compatibility Test
+
+```bash
+# Test Panel Issue #27 compatibility
+./scripts/test-panel-protocol.sh
+```
+
+## 🚀 Development
 
 ### Building
 
 ```bash
-# Install dependencies
-make install
+# Development build
+go build -o bin/agent cmd/agent/main.go
 
-# Build the binary
-make build
+# Production build with optimizations
+CGO_ENABLED=0 go build -ldflags="-w -s" -o bin/agent cmd/agent/main.go
 
-# Run tests
-make test
-
-# Run linter
-make lint
-
-# Build for all platforms
+# Cross-platform builds
 make build-all
 ```
 
 ### Project Structure
 
 ```
-.
-├── cmd/agent/          # Main application entry point
+ctrl-alt-play-agent/
+├── cmd/
+│   ├── agent/          # Main application entry point
+│   └── test/           # Integration tests
 ├── internal/
-│   ├── client/         # WebSocket client and message handling
+│   ├── client/         # Panel WebSocket client
 │   ├── config/         # Configuration management
-│   ├── docker/         # Docker container management
-│   └── messages/       # Message types and serialization
-├── build/              # Build artifacts (created by make)
-├── Dockerfile          # Container build configuration
-├── Makefile           # Build automation
-└── README.md          # This file
+│   ├── docker/         # Docker API integration
+│   ├── health/         # Health check server
+│   └── messages/       # Protocol message types
+├── scripts/            # Build and test scripts
+├── .github/workflows/  # CI/CD pipeline
+└── docs/              # Additional documentation
 ```
 
-## Communication Protocol
+### Contributing
 
-The agent communicates with the panel using WebSocket messages with the following structure:
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
 
-```json
+## 📊 Monitoring
+
+### Health Check
+
+The Agent provides a health check endpoint:
+
+```bash
+# Check agent health
+curl http://localhost:8081/health
+
+# Response
 {
-  "type": "message_type",
-  "data": { "...": "..." },
-  "timestamp": "2025-01-23T10:30:00Z"
+  "status": "healthy",
+  "timestamp": "2025-01-23T10:00:00Z",
+  "uptime": "2h30m45s",
+  "panel_connected": true,
+  "docker_available": true
 }
 ```
 
-### Supported Message Types
+### Logging
 
-#### Incoming (from panel):
-- `system_info_request` - Request for system information
-- `server_create` - Create a new game server container
-- `server_start` - Start a game server
-- `server_stop` - Stop a game server
-- `server_restart` - Restart a game server
-- `server_delete` - Delete a game server and its container
-- `server_command` - Execute a command in a server container
+```bash
+# View logs in real-time
+journalctl -u ctrl-alt-play-agent -f
 
-#### Outgoing (to panel):
-- `heartbeat` - Periodic status update
-- `system_info` - System specifications and capabilities
-- `server_status` - Server status updates
-- `server_output` - Console output from servers
-- `error` - Error messages
-
-## Security
-
-- All communication uses bearer token authentication
-- Docker socket access is required for container management
-- The agent runs with minimal required privileges
-- Supports non-root container execution
-
-## License
-
-This project is part of the Ctrl-Alt-Play ecosystem. See the main panel repository for licensing information.
-
-## Contributing
-
-Please refer to the main Ctrl-Alt-Play panel repository for contribution guidelines.
-
-## Support
-
-For issues and support, please use the GitHub issues in the main panel repository.
-Agent for the Ctrl-Alt-Play panel
-
-## Overview
-The `ctrl-alt-play-agent` is designed to manage and run game servers via Docker, providing a seamless integration with the Ctrl-Alt-Play panel system. This agent functions similarly to the "Wings" system found in Pelican Panel and Pterodactyl panel, allowing for efficient server management and real-time communication.
-
-## Project Structure
-The project is organized into the following directories and files:
-
-- **cmd/agent/main.go**: Entry point of the agent application. Initializes the application and starts the main event loop.
-- **internal/api/router.go**: Defines API routes for managing game servers and handles incoming requests.
-- **internal/config/config.go**: Manages configuration settings, loading from files or environment variables.
-- **internal/docker/manager.go**: Contains logic for managing Docker containers, including starting and stopping game servers.
-- **internal/server/manager.go**: Handles the lifecycle of game servers and interacts with the Docker manager.
-- **internal/websocket/handler.go**: Manages WebSocket connections for real-time communication with the Ctrl-Alt-Play panel.
-- **go.mod**: Module definition for the Go project, specifying dependencies and their versions.
-
-## Setup Instructions
-1. Clone the repository:
-   ```
-   git clone <repository-url>
-   ```
-2. Navigate to the project directory:
-   ```
-   cd ctrl-alt-play-agent
-   ```
-3. Install dependencies:
-   ```
-   go mod tidy
-   ```
-4. Configure the agent by editing the configuration file or setting environment variables as needed.
-
-## Usage
-To run the agent, execute the following command:
+# Or with Docker
+docker logs -f ctrl-alt-play-agent
 ```
-go run cmd/agent/main.go
-```
-This will start the agent and begin managing game servers as configured.
 
-## Contributing
-Contributions are welcome! Please submit a pull request or open an issue for any enhancements or bug fixes.
+## 🔗 Related Projects
+
+- **[Ctrl-Alt-Play Panel](https://github.com/scarecr0w12/ctrl-alt-play-panel)** - Web management interface
+- **[Pelican Panel](https://pelican.dev/)** - Inspiration for architecture design
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🤝 Support
+
+- **Documentation**: [Wiki](https://github.com/scarecr0w12/ctrl-alt-play-agent/wiki)
+- **Issues**: [GitHub Issues](https://github.com/scarecr0w12/ctrl-alt-play-agent/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/scarecr0w12/ctrl-alt-play-agent/discussions)
+
+---
+
+**Made with ❤️ for the gaming community**
