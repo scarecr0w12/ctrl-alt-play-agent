@@ -14,12 +14,14 @@
 - Comprehensive Panel+Agent alignment review completed
 - Critical protocol misalignment identified
 - Development methodology aligned with Panel system
+- Memory bank documentation cleaned and updated
 
 ## Doing
 
 - Implementing Panel Issue #27 protocol updates
 - Updating message structures for new command format
 - Adding handlePanelCommand() method for compatibility
+- Cleaning up memory bank documentation
 
 ## Next
 
@@ -29,8 +31,8 @@
 - Add structured error responses matching Panel expectations
 - Enhance status reporting with detailed container information
 - Add comprehensive logging with structured levels
-- Implement file management operations
-- Add resource monitoring capabilities
+- Implement enhanced file management operations
+- Add detailed resource monitoring capabilities
 - Create comprehensive test suite
 - Deploy and test with actual Panel instance
 - Add automatic reconnection improvements

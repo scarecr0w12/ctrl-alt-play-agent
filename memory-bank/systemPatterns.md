@@ -37,3 +37,19 @@ Updated with comprehensive Panel+Agent integration patterns. The Panel implement
 - WebSocket connection with Bearer token authentication
 - Heartbeat every 30 seconds for connection health
 - Docker API integration for container lifecycle management
+
+
+## Panel+Agent Distributed Architecture with Protocol Evolution
+
+Comprehensive Panel+Agent integration patterns established. Key pattern is the distributed architecture where Panel acts as central control plane and Agents execute commands on remote nodes. Critical breaking change from Panel Issue #27 requires dual protocol support - new unified command format (type:'command' with action fields) and legacy message types for backwards compatibility. All responses must follow structured format with success/error fields and proper message ID tracking.
+
+### Examples
+
+- Panel new format: {"id":"cmd_123","type":"command","action":"start_server","serverId":"server_456","timestamp":"2025-07-24T10:00:00Z"}
+- Agent response: {"id":"cmd_123","type":"response","success":true,"message":"Server started successfully","data":{"status":"running"}}
+- Legacy format: {"type":"server_start","data":{"serverId":"server_456"}} - still supported
+- Error response: {"id":"cmd_123","type":"response","success":false,"error":{"code":"CONTAINER_NOT_FOUND","message":"Container not found"}}
+- WebSocket authentication: Authorization: Bearer <agent_secret>
+- Health check pattern: GET /health returns JSON status
+- Docker API integration: docker.NewClientWithOpts(docker.FromEnv)
+- Graceful shutdown: context.WithCancel() for cleanup
