@@ -1,0 +1,39 @@
+{
+  "name": "ctrl-alt-play-agent",
+  "version": "1.1.0",
+  "description": "A lightweight, high-performance remote game server management agent for Ctrl-Alt-Play Panel",
+  "main": "cmd/agent/main.go",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/scarecr0w12/ctrl-alt-play-agent.git"
+  },
+  "keywords": [
+    "game-server",
+    "docker",
+    "management",
+    "agent",
+    "ctrl-alt-play",
+    "websocket",
+    "api"
+  ],
+  "author": "scarecr0w12",
+  "license": "MIT",
+  "scripts": {
+    "build": "go build -o bin/agent cmd/agent/main.go",
+    "test": "go test ./...",
+    "test:coverage": "go test -coverprofile=coverage.out ./... && go tool cover -html=coverage.out",
+    "lint": "golangci-lint run",
+    "docker:build": "docker build -t ctrl-alt-play-agent .",
+    "docker:run": "docker run -p 8081:8081 ctrl-alt-play-agent",
+    "dev": "go run cmd/agent/main.go",
+    "clean": "rm -rf bin/ coverage.out"
+  },
+  "engines": {
+    "go": ">=1.23.0"
+  },
+  "dependencies": {
+    "github.com/docker/docker": "v28.3.2+incompatible",
+    "github.com/gorilla/websocket": "v1.5.3",
+    "github.com/stretchr/testify": "v1.10.0"
+  }
+}

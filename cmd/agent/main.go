@@ -23,7 +23,7 @@ func main() {
 	}
 
 	// Initialize health check server
-	healthServer := health.NewServer(cfg.NodeID, "1.0.0")
+	healthServer := health.NewServer(cfg.NodeID, "1.1.0")
 
 	// Initialize Docker manager
 	dockerManager, err := docker.NewManager()

@@ -6,6 +6,10 @@ Ctrl-Alt-Play Agent is a lightweight, production-ready game server management ag
 
 ## Project Description
 
+Ctrl-Alt-Play Agent v1.1.0 - A lightweight, high-performance remote game server management agent with dual communication architecture (HTTP API + WebSocket) for seamless integration with Ctrl-Alt-Play Panel
+
+
+
 The Agent functions similarly to the "Wings" system found in Pelican Panel and Pterodactyl Panel, providing a secure and efficient bridge between the central Panel and Docker-based game servers. It handles the complete lifecycle of game server containers, from creation and configuration to monitoring and cleanup, while maintaining real-time communication with the Panel for immediate status updates and command execution.
 
 **Current Status**: Requires protocol updates to align with Panel's Issue #27 breaking changes that introduced a new unified command format.
@@ -24,6 +28,10 @@ The Agent functions similarly to the "Wings" system found in Pelican Panel and P
 
 ## Architecture
 
+Dual communication architecture with HTTP REST API server (port 8081) for panel discovery and command execution, plus WebSocket client for real-time communication. Single combined server hosting health endpoint and API commands with CORS support and multiple authentication methods (X-API-Key and Bearer token).
+
+
+
 **Distributed Panel+Agent System**:
 - Agent runs on remote nodes with Docker access
 - Communicates with central Panel via WebSocket (port 8080)
@@ -36,6 +44,18 @@ The Agent functions similarly to the "Wings" system found in Pelican Panel and P
 
 ## Technologies
 
+- Go 1.23+
+- Docker API
+- WebSocket
+- HTTP REST API
+- JSON
+- CORS
+- Docker Compose
+- Kubernetes
+- Systemd
+
+
+
 - **Go 1.21+**: Core runtime and development platform
 - **Docker Engine**: Container management and orchestration
 - **WebSocket**: Real-time bidirectional communication protocol
@@ -46,6 +66,12 @@ The Agent functions similarly to the "Wings" system found in Pelican Panel and P
 - **HTTP**: Health check and status endpoint
 
 ## Libraries and Dependencies
+
+- github.com/docker/docker v28.3.2+incompatible
+- github.com/gorilla/websocket v1.5.3
+- github.com/stretchr/testify v1.10.0
+
+
 
 **Core Dependencies**:
 - `github.com/gorilla/websocket` - WebSocket client implementation

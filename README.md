@@ -3,10 +3,38 @@
 [![CI/CD Pipeline](https://github.com/scarecr0w12/ctrl-alt-play-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/scarecr0w12/ctrl-alt-play-agent/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/scarecr0w12/ctrl-alt-play-agent)](https://goreportcard.com/report/github.com/scarecr0w12/ctrl-alt-play-agent)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](VERSION)
 
 A lightweight, high-performance remote game server management agent designed to work seamlessly with the [Ctrl-Alt-Play Panel](https://github.com/scarecr0w12/ctrl-alt-play-panel). Built with Go for maximum efficiency and Docker integration for reliable container management.
 
-## 🚀 Features
+## 🚀 Quick Start
+
+### Using Docker (Recommended)
+
+```bash
+docker run -d \
+  --name ctrl-alt-play-agent \
+  --restart unless-stopped \
+  -p 8081:8081 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -e PANEL_URL=ws://your-panel-host:8080 \
+  -e NODE_ID=agent-node-1 \
+  -e AGENT_SECRET=your-secure-secret \
+  ctrl-alt-play-agent:latest
+```
+
+### Download Binary
+
+```bash
+# Download latest release
+wget https://github.com/scarecr0w12/ctrl-alt-play-agent/releases/latest/download/ctrl-alt-play-agent-linux-amd64
+
+# Make executable and run
+chmod +x ctrl-alt-play-agent-linux-amd64
+./ctrl-alt-play-agent-linux-amd64
+```
+
+## ✨ Features
 
 ### Panel Issue #27 Compatible
 

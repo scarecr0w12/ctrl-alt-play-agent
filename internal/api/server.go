@@ -290,7 +290,7 @@ func (s *Server) handleSystemStatus() CommandResponse {
 func (s *Server) sendResponse(w http.ResponseWriter, response CommandResponse, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	
+
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("Error encoding response: %v", err)
 	}
@@ -300,21 +300,21 @@ func (s *Server) sendResponse(w http.ResponseWriter, response CommandResponse, s
 func (s *Server) StartServer(port string, healthServer *health.Server) error {
 	// Add health endpoint
 	http.HandleFunc("/health", healthServer.Handler())
-	
+
 	// Add API command endpoint
 	http.HandleFunc("/api/command", s.CommandHandler())
-	
+
 	// Add CORS headers for browser requests
 	http.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
-		
+
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		
+
 		if r.URL.Path == "/api/command" {
 			s.CommandHandler()(w, r)
 		} else {
