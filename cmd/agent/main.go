@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/scarecr0w12/ctrl-alt-play-agent/internal/api"
 	"github.com/scarecr0w12/ctrl-alt-play-agent/internal/client"
 	"github.com/scarecr0w12/ctrl-alt-play-agent/internal/config"
 	"github.com/scarecr0w12/ctrl-alt-play-agent/internal/docker"
@@ -24,14 +25,6 @@ func main() {
 	// Initialize health check server
 	healthServer := health.NewServer(cfg.NodeID, "1.0.0")
 
-	// Start health check server in background
-	go func() {
-		log.Printf("Starting health check server on :%s", cfg.HealthPort)
-		if err := healthServer.StartServer(cfg.HealthPort); err != nil {
-			log.Printf("Health check server error: %v", err)
-		}
-	}()
-
 	// Initialize Docker manager
 	dockerManager, err := docker.NewManager()
 	if err != nil {
@@ -43,24 +36,40 @@ func main() {
 		}
 	}()
 
+	// Initialize API server
+	apiServer := api.NewServer(cfg, dockerManager)
+
+	// Start combined API/Health server in background
+	go func() {
+		log.Printf("Starting combined API/Health server on :%s", cfg.HealthPort)
+		if err := apiServer.StartServer(cfg.HealthPort, healthServer); err != nil {
+			log.Printf("API/Health server error: %v", err)
+		}
+	}()
+
 	// Initialize WebSocket client
 	wsClient := client.NewClient(cfg, dockerManager)
 
-	// Connect to panel
+	// Try to connect to panel (but don't fail if it's not available)
 	if err := wsClient.Connect(); err != nil {
-		log.Fatalf("Error connecting to panel: %v", err)
+		log.Printf("Warning: Could not connect to panel: %v", err)
+		log.Printf("Agent will continue running with HTTP API only")
+		healthServer.SetConnectionStatus(false)
+	} else {
+		// Update health status to connected
+		healthServer.SetConnectionStatus(true)
+
+		// Start client
+		if err := wsClient.Start(); err != nil {
+			log.Printf("Warning: Error starting WebSocket client: %v", err)
+			healthServer.SetConnectionStatus(false)
+		} else {
+			log.Printf("Agent connected to panel at %s as node %s", cfg.PanelURL, cfg.NodeID)
+		}
 	}
 
-	// Update health status to connected
-	healthServer.SetConnectionStatus(true)
-
-	// Start client
-	if err := wsClient.Start(); err != nil {
-		log.Fatalf("Error starting client: %v", err)
-	}
-
-	log.Printf("Agent connected to panel at %s as node %s", cfg.PanelURL, cfg.NodeID)
 	log.Printf("Health check available at http://localhost:%s/health", cfg.HealthPort)
+	log.Printf("API commands available at http://localhost:%s/api/command", cfg.HealthPort)
 
 	// Wait for interrupt signal
 	interrupt := make(chan os.Signal, 1)
@@ -73,6 +82,8 @@ func main() {
 	healthServer.SetConnectionStatus(false)
 
 	// Graceful shutdown
-	wsClient.Stop()
+	if wsClient != nil {
+		wsClient.Stop()
+	}
 	log.Println("Agent stopped")
 }

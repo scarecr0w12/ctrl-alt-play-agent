@@ -5,6 +5,13 @@ This file contains the architectural decisions and design patterns for the Memor
 
 ## Architectural Decisions
 
+- Dual communication architecture with HTTP API and WebSocket client
+- Combined health and API server on single port (8081)
+- Graceful WebSocket connection failure handling
+- Panel-compatible authentication using X-API-Key header
+
+
+
 - Use Go for performance, Docker API integration, and concurrent operations
 - WebSocket for real-time Panel communication with automatic reconnection
 - Environment variables for configuration management and deployment flexibility
@@ -35,6 +42,13 @@ This file contains the architectural decisions and design patterns for the Memor
 
 ## Design Considerations
 
+- Panel expects HTTP API for discovery and commands
+- Agent needs WebSocket for real-time communication
+- Single port design simplifies deployment
+- Graceful degradation when panel unavailable
+
+
+
 - Security: Bearer token authentication, secure Docker operations, and minimal privilege execution
 - Performance: Efficient message handling, Docker API optimization, and resource management
 - Reliability: Automatic reconnection, error recovery, and graceful degradation
@@ -56,6 +70,42 @@ This file contains the architectural decisions and design patterns for the Memor
 
 
 ## Components
+
+### HTTP API Server
+
+REST API endpoints for panel discovery and command execution
+
+**Responsibilities:**
+
+- Health endpoint for discovery
+- Command execution via /api/command
+- Docker container management
+- System status reporting
+
+### WebSocket Client
+
+Real-time communication channel with panel
+
+**Responsibilities:**
+
+- Live updates to panel
+- Real-time message handling
+- Connection status management
+
+### Combined Server
+
+Single port server hosting both health and API endpoints
+
+**Responsibilities:**
+
+- Port consolidation
+- CORS handling
+- Authentication validation
+- Request routing
+
+
+
+
 
 ### WebSocket Client
 
