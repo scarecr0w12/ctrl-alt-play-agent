@@ -96,6 +96,7 @@ func (s *Server) executeCommand(req CommandRequest) CommandResponse {
 	log.Printf("Executing command: %s", req.Action)
 
 	switch req.Action {
+	// Legacy Docker commands (for backward compatibility)
 	case "docker.list":
 		return s.handleDockerList()
 	case "docker.start":
@@ -106,6 +107,44 @@ func (s *Server) executeCommand(req CommandRequest) CommandResponse {
 		return s.handleDockerRemove(req.Data)
 	case "docker.inspect":
 		return s.handleDockerInspect(req.Data)
+
+	// Server lifecycle commands (panel expected)
+	case "start_server":
+		return s.handleStartServer(req.Data)
+	case "stop_server":
+		return s.handleStopServer(req.Data)
+	case "restart_server":
+		return s.handleRestartServer(req.Data)
+	case "kill_server":
+		return s.handleKillServer(req.Data)
+	case "get_server_status":
+		return s.handleGetServerStatus(req.Data)
+	case "get_server_metrics":
+		return s.handleGetServerMetrics(req.Data)
+	case "list_servers":
+		return s.handleListServers()
+
+	// File management commands (panel expected)
+	case "list_files":
+		return s.handleListFiles(req.Data)
+	case "read_file":
+		return s.handleReadFile(req.Data)
+	case "write_file":
+		return s.handleWriteFile(req.Data)
+	case "upload_file":
+		return s.handleUploadFile(req.Data)
+	case "download_file":
+		return s.handleDownloadFile(req.Data)
+
+	// Mod management commands (panel expected)
+	case "install_mod":
+		return s.handleInstallMod(req.Data)
+	case "uninstall_mod":
+		return s.handleUninstallMod(req.Data)
+	case "list_mods":
+		return s.handleListMods(req.Data)
+
+	// System commands
 	case "system.status":
 		return s.handleSystemStatus()
 	case "system.ping":

@@ -7,6 +7,8 @@
 
 A lightweight, high-performance remote game server management agent designed to work seamlessly with the [Ctrl-Alt-Play Panel](https://github.com/scarecr0w12/ctrl-alt-play-panel). Built with Go for maximum efficiency and Docker integration for reliable container management.
 
+**✨ Now fully compatible with Panel ExternalAgentService - supports all server lifecycle, file management, and mod operations expected by the panel.**
+
 ## 🚀 Quick Start
 
 ### Using Docker (Recommended)
@@ -36,32 +38,21 @@ chmod +x ctrl-alt-play-agent-linux-amd64
 
 ## ✨ Features
 
-### Panel Issue #27 Compatible
+### Panel Integration Compatibility
 
-- **New Unified Command Format**: Full compatibility with Panel's latest command protocol
-- **Backwards Compatibility**: Supports legacy message formats for seamless migration
-- **Real-time Communication**: WebSocket-based bidirectional communication with Panel
-- **Standardized Responses**: Structured response format with error handling
+- **Full ExternalAgentService Support**: Complete compatibility with Panel's ExternalAgentService API
+- **Server Lifecycle Management**: `start_server`, `stop_server`, `restart_server`, `kill_server`, `get_server_status`, `get_server_metrics`, `list_servers`
+- **File Management Operations**: `list_files`, `read_file`, `write_file`, `upload_file`, `download_file` with sandboxed security
+- **Mod Management System**: `install_mod`, `uninstall_mod`, `list_mods` for game server modifications
+- **Dual Command Support**: Supports both modern server-centric commands and legacy Docker commands
+- **AgentDiscoveryService Compatible**: Automatic discovery and registration with Panel's AgentDiscoveryService
 
-### Container Management
+### Communication & Reliability
 
-- **Docker Integration**: Complete Docker API integration for game server containers
-- **Resource Management**: CPU, memory, and disk usage monitoring and limiting
-- **Container Lifecycle**: Create, start, stop, restart, and delete server containers
-- **Signal Support**: Graceful shutdowns with SIGTERM/SIGKILL and timeout handling
-
-### Server Operations
-
-- **Multi-Server Support**: Manage multiple game servers on a single node
-- **Real-time Status**: Live server status monitoring and reporting
-- **Console Access**: Execute commands and stream console output
-- **File Management**: Read and write server configuration files
-
-### Security & Reliability
-
-- **JWT Authentication**: Secure Bearer token authentication with Panel
-- **Health Monitoring**: Built-in health check endpoint for system monitoring
-- **Error Handling**: Comprehensive error reporting with structured error codes
+- **Dual Architecture**: HTTP API (port 8081) for direct commands + WebSocket client for Panel integration
+- **Health Monitoring**: Built-in health check endpoint compatible with Panel discovery service
+- **Authentication**: X-API-Key and Bearer token support matching Panel's expectations
+- **Error Handling**: Comprehensive error reporting with structured responses
 - **Connection Recovery**: Automatic reconnection and heartbeat monitoring
 
 ## 🏗️ Architecture
@@ -79,31 +70,28 @@ The Agent follows a distributed architecture pattern inspired by Pelican Panel/W
 └─────────────────┘                      └─────────────────┘
 ```
 
-### Protocol Compatibility
+### Panel Integration
 
-**Panel Issue #27 Command Format (NEW)**:
+**Command Format**:
+
 ```json
 {
-  "id": "cmd_12345_abc",
-  "type": "command",
-  "timestamp": "2025-01-23T10:00:00Z",
-  "agentId": "agent_uuid",
   "action": "start_server",
-  "serverId": "server_123"
+  "data": {
+    "serverId": "minecraft-001"
+  }
 }
 ```
 
 **Agent Response Format**:
+
 ```json
 {
-  "id": "cmd_12345_abc",
-  "type": "response",
-  "timestamp": "2025-01-23T10:00:00Z",
   "success": true,
-  "message": "Server started successfully",
   "data": {
-    "serverId": "server_123",
-    "status": "running"
+    "serverId": "minecraft-001",
+    "status": "starting",
+    "message": "Server start command issued successfully"
   }
 }
 ```
@@ -187,47 +175,33 @@ export HEALTH_PORT="8081"
 
 ### Supported Commands
 
-| **Command** | **Description** | **Payload Support** |
-|-------------|-----------------|-------------------|
-| `start_server` | Start a game server container | ❌ |
-| `stop_server` | Stop server with signal/timeout | ✅ Signal, timeout |
-| `restart_server` | Graceful restart sequence | ❌ |
-| `create_server` | Create new server container | ✅ Full server config |
-| `delete_server` | Remove server and cleanup | ❌ |
-| `get_status` | Get detailed server status | ❌ |
+| **Command** | **Description** | **Parameters** |
+|-------------|-----------------|----------------|
+| `start_server` | Start a game server | `serverId` |
+| `stop_server` | Stop server gracefully | `serverId` |
+| `restart_server` | Restart server (stop + start) | `serverId` |
+| `kill_server` | Force terminate server | `serverId` |
+| `get_server_status` | Get detailed server status | `serverId` |
+| `get_server_metrics` | Get performance metrics | `serverId` |
+| `list_servers` | List all servers | none |
+| `list_files` | List files in server directory | `serverId`, `path` |
+| `read_file` | Read file contents | `serverId`, `path` |
+| `write_file` | Write file contents | `serverId`, `path`, `content` |
+| `upload_file` | Upload file (base64) | `serverId`, `path`, `content` |
+| `download_file` | Download file (base64) | `serverId`, `path` |
+| `install_mod` | Install server mod | `serverId`, `modId`, `modUrl`, `version` |
+| `uninstall_mod` | Remove server mod | `serverId`, `modId` |
+| `list_mods` | List installed mods | `serverId` |
 
-### Stop Server Example
+### Legacy Docker Commands
 
-```json
-{
-  "id": "cmd_stop_123",
-  "type": "command",
-  "action": "stop_server",
-  "serverId": "minecraft_server_1",
-  "payload": {
-    "signal": "SIGTERM",
-    "timeout": 30
-  }
-}
-```
-
-### Real-time Events
-
-The Agent broadcasts events to keep the Panel synchronized:
-
-```json
-{
-  "type": "event",
-  "timestamp": "2025-01-23T10:05:00Z",
-  "event": "server_status_changed",
-  "data": {
-    "serverId": "minecraft_server_1",
-    "previousStatus": "starting",
-    "currentStatus": "running",
-    "pid": 1234
-  }
-}
-```
+| **Command** | **Description** | **Parameters** |
+|-------------|-----------------|----------------|
+| `docker.list` | List all containers | none |
+| `docker.start` | Start container | `containerId` |
+| `docker.stop` | Stop container | `containerId` |
+| `docker.remove` | Remove container | `containerId` |
+| `docker.inspect` | Inspect container | `containerId` |
 
 ## 🧪 Testing
 

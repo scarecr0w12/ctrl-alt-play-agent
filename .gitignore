@@ -20,6 +20,9 @@ go.work
 # Build output
 build/
 dist/
+bin/
+agent
+ctrl-alt-play-agent*
 
 # IDE files
 .vscode/
@@ -56,3 +59,31 @@ temp/
 
 # Air live reload
 tmp/
+
+# Security and secrets
+secrets/
+keys/
+*.key
+*.pem
+*.crt
+*.p12
+
+# Memory bank and development files (keep private)
+memory-bank/
+PANEL_INTEGRATION_ANALYSIS.md
+DEVELOPMENT_STATUS.md
+DEVELOPMENT_COMPLETE.md
+
+# Coverage reports
+coverage.out
+coverage.html
+
+# Backup files
+*.bak
+*.backup
+
+# Game server data (if stored locally)
+/opt/gameservers/
+
+# Panel integration test files
+test-panel-integration/

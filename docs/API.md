@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Ctrl-Alt-Play Agent provides a dual communication architecture with both HTTP REST API and WebSocket capabilities for comprehensive game server management.
+The Ctrl-Alt-Play Agent provides a comprehensive dual communication architecture with both HTTP REST API and WebSocket capabilities for game server management, file operations, and mod management. The agent now supports all commands expected by the Ctrl-Alt-Play Panel.
 
 ## Base Information
 
@@ -14,11 +14,13 @@ The Ctrl-Alt-Play Agent provides a dual communication architecture with both HTT
 ## Authentication
 
 ### HTTP API
+
 ```http
 X-API-Key: your-agent-secret-key
 ```
 
 ### WebSocket
+
 ```http
 Authorization: Bearer your-agent-secret-key
 ```
@@ -32,6 +34,7 @@ Authorization: Bearer your-agent-secret-key
 Returns the current health status of the agent.
 
 **Response:**
+
 ```json
 {
   "status": "healthy|degraded",
@@ -44,6 +47,7 @@ Returns the current health status of the agent.
 ```
 
 **Status Codes:**
+
 - `200 OK` - Agent is healthy and connected
 - `503 Service Unavailable` - Agent is degraded (not connected to panel)
 
@@ -51,310 +55,436 @@ Returns the current health status of the agent.
 
 #### POST /api/command
 
-Executes commands on the agent.
+Execute commands on the agent. All commands follow the same request/response format.
 
-**Request:**
+**Request Format:**
+
 ```json
 {
   "action": "command_name",
   "data": {
-    "key": "value"
+    "param1": "value1",
+    "param2": "value2"
   }
 }
 ```
 
-**Response:**
+**Response Format:**
+
 ```json
 {
-  "success": true|false,
+  "success": true,
   "data": {
     "result": "data"
   },
-  "error": "error message (if success=false)"
+  "error": "error message if success is false"
 }
 ```
 
-## Available Commands
+## Server Lifecycle Commands
 
-### System Commands
+These commands provide server-specific management capabilities that the panel expects.
 
-#### system.ping
-Test connectivity to the agent.
+### start_server
 
-**Request:**
+Start a game server.
+
+**Parameters:**
+- `serverId` (string): The ID of the server to start
+
+**Example Request:**
+
 ```json
 {
-  "action": "system.ping",
-  "data": {}
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
+  "action": "start_server",
   "data": {
-    "message": "pong",
-    "timestamp": "2025-07-25T03:49:03.032081114Z"
+    "serverId": "minecraft-001"
   }
 }
 ```
 
-#### system.status
-Get comprehensive system information.
+**Example Response:**
 
-**Request:**
-```json
-{
-  "action": "system.status",
-  "data": {}
-}
-```
-
-**Response:**
 ```json
 {
   "success": true,
   "data": {
-    "uptime": "03:49:59 up 1 day, 26 min, 4 users, load average: 0.07, 0.04, 0.06",
-    "memory": "total used free shared buff/cache available...",
-    "disk": "Filesystem Size Used Avail Use% Mounted on..."
+    "serverId": "minecraft-001",
+    "status": "starting",
+    "message": "Server start command issued successfully"
   }
 }
 ```
 
-### Docker Commands
+### stop_server
 
-#### docker.list
-List all Docker containers.
+Stop a game server gracefully.
 
-**Request:**
-```json
-{
-  "action": "docker.list",
-  "data": {}
-}
-```
+**Parameters:**
+- `serverId` (string): The ID of the server to stop
 
-**Response:**
+### restart_server
+
+Restart a game server (stop then start).
+
+**Parameters:**
+- `serverId` (string): The ID of the server to restart
+
+### kill_server
+
+Forcefully terminate a game server.
+
+**Parameters:**
+- `serverId` (string): The ID of the server to kill
+
+### get_server_status
+
+Get the current status of a specific server.
+
+**Parameters:**
+- `serverId` (string): The ID of the server to check
+
+**Example Response:**
+
 ```json
 {
   "success": true,
   "data": {
-    "containers": [
+    "server": {
+      "serverId": "minecraft-001",
+      "containerId": "abc123",
+      "name": "/minecraft-001",
+      "status": "running",
+      "config": {
+        "image": "minecraft:latest",
+        "ports": ["25565:25565"],
+        "created": "2024-01-20T08:00:00Z"
+      }
+    }
+  }
+}
+```
+
+### get_server_metrics
+
+Get performance metrics for a specific server.
+
+**Parameters:**
+- `serverId` (string): The ID of the server to get metrics for
+
+**Example Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "metrics": {
+      "serverId": "minecraft-001",
+      "timestamp": "2024-01-20T10:30:00Z",
+      "cpu_usage": "15%",
+      "memory_usage": "2.5GB",
+      "network_in": "1.2MB",
+      "network_out": "850KB",
+      "uptime": "2h30m15s",
+      "player_count": 0
+    }
+  }
+}
+```
+
+### list_servers
+
+List all available servers.
+
+**Parameters:** None
+
+**Example Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "servers": [
       {
-        "Id": "container_id",
-        "Names": ["/container_name"],
-        "Image": "image_name",
-        "State": "running|exited",
-        "Status": "Up 2 hours",
-        "Ports": [...],
-        "Labels": {...},
-        "Mounts": [...]
+        "serverId": "minecraft-001",
+        "containerId": "abc123",
+        "name": "/minecraft-001",
+        "status": "running",
+        "config": {
+          "image": "minecraft:latest",
+          "ports": ["25565:25565"],
+          "created": "2024-01-20T08:00:00Z"
+        }
+      }
+    ],
+    "count": 1
+  }
+}
+```
+
+## File Management Commands
+
+These commands provide file system operations within server directories.
+
+### list_files
+
+List files and directories within a server's directory.
+
+**Parameters:**
+- `serverId` (string): The ID of the server
+- `path` (string, optional): Path within the server directory (default: "/")
+
+**Example Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "serverId": "minecraft-001",
+    "path": "/",
+    "files": [
+      {
+        "name": "server.properties",
+        "type": "file",
+        "size": 1024,
+        "modified": "2024-01-20T09:00:00Z"
+      },
+      {
+        "name": "logs",
+        "type": "directory",
+        "size": 0,
+        "modified": "2024-01-20T08:30:00Z"
       }
     ]
   }
 }
 ```
 
-#### docker.start
+### read_file
+
+Read the contents of a file within a server's directory.
+
+**Parameters:**
+- `serverId` (string): The ID of the server
+- `path` (string): Path to the file within the server directory
+
+**Example Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "serverId": "minecraft-001",
+    "path": "server.properties",
+    "content": "server-port=25565\nmax-players=20\n...",
+    "size": 1024,
+    "modified": "2024-01-20T09:00:00Z"
+  }
+}
+```
+
+### write_file
+
+Write content to a file within a server's directory.
+
+**Parameters:**
+- `serverId` (string): The ID of the server
+- `path` (string): Path to the file within the server directory
+- `content` (string): Content to write to the file
+
+### upload_file
+
+Upload a file to a server's directory (binary files supported via base64).
+
+**Parameters:**
+- `serverId` (string): The ID of the server
+- `path` (string): Path to the file within the server directory
+- `content` (string): Base64-encoded file content
+
+### download_file
+
+Download a file from a server's directory.
+
+**Parameters:**
+- `serverId` (string): The ID of the server
+- `path` (string): Path to the file within the server directory
+
+**Example Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "serverId": "minecraft-001",
+    "path": "server.properties",
+    "content": "c2VydmVyLXBvcnQ9MjU1NjU=...",
+    "size": 1024,
+    "modified": "2024-01-20T09:00:00Z",
+    "encoding": "base64"
+  }
+}
+```
+
+## Mod Management Commands
+
+These commands provide mod installation and management capabilities.
+
+### install_mod
+
+Install a mod for a specific server.
+
+**Parameters:**
+- `serverId` (string): The ID of the server
+- `modId` (string): The ID of the mod to install
+- `modUrl` (string, optional): URL to download the mod from
+- `version` (string, optional): Version of the mod to install
+
+### uninstall_mod
+
+Uninstall a mod from a specific server.
+
+**Parameters:**
+- `serverId` (string): The ID of the server
+- `modId` (string): The ID of the mod to uninstall
+
+### list_mods
+
+List all installed mods for a specific server.
+
+**Parameters:**
+- `serverId` (string): The ID of the server
+
+**Example Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "serverId": "minecraft-001",
+    "mods": [
+      {
+        "id": "worldedit",
+        "name": "WorldEdit",
+        "version": "7.2.12",
+        "description": "World editing plugin",
+        "enabled": true
+      }
+    ],
+    "count": 1
+  }
+}
+```
+
+## Legacy Docker Commands
+
+For backward compatibility, these Docker commands are still supported:
+
+### docker.list
+
+List all Docker containers.
+
+**Parameters:** None
+
+### docker.start
+
 Start a Docker container.
 
-**Request:**
-```json
-{
-  "action": "docker.start",
-  "data": {
-    "containerId": "container_id_or_name"
-  }
-}
-```
+**Parameters:**
+- `containerId` (string): The ID or name of the container to start
 
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "containerId": "container_id",
-    "status": "started"
-  }
-}
-```
+### docker.stop
 
-#### docker.stop
 Stop a Docker container.
 
-**Request:**
-```json
-{
-  "action": "docker.stop",
-  "data": {
-    "containerId": "container_id_or_name"
-  }
-}
-```
+**Parameters:**
+- `containerId` (string): The ID or name of the container to stop
 
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "containerId": "container_id",
-    "status": "stopped"
-  }
-}
-```
+### docker.remove
 
-#### docker.remove
 Remove a Docker container.
 
-**Request:**
-```json
-{
-  "action": "docker.remove",
-  "data": {
-    "containerId": "container_id_or_name"
-  }
-}
-```
+**Parameters:**
+- `containerId` (string): The ID or name of the container to remove
 
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "containerId": "container_id",
-    "status": "removed"
-  }
-}
-```
+### docker.inspect
 
-#### docker.inspect
-Get detailed information about a Docker container.
+Inspect a Docker container.
 
-**Request:**
-```json
-{
-  "action": "docker.inspect",
-  "data": {
-    "containerId": "container_id_or_name"
-  }
-}
-```
+**Parameters:**
+- `containerId` (string): The ID or name of the container to inspect
 
-**Response:**
+## System Commands
+
+### system.ping
+
+Simple ping command for connectivity testing.
+
+**Parameters:** None
+
+**Example Response:**
+
 ```json
 {
   "success": true,
   "data": {
-    "container": {
-      "Id": "full_container_id",
-      "Names": ["/container_name"],
-      "Image": "image_name",
-      "State": "running|exited",
-      "Status": "detailed_status",
-      "Ports": [...],
-      "Labels": {...},
-      "Mounts": [...],
-      "NetworkSettings": {...}
-    }
+    "message": "pong",
+    "timestamp": "2024-01-20T10:30:00Z"
   }
 }
 ```
 
-## Error Responses
+### system.status
 
-All endpoints may return error responses in this format:
+Get system information including uptime, memory, and disk usage.
+
+**Parameters:** None
+
+**Example Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "uptime": "up 2 days, 5 hours, 23 minutes",
+    "memory": "total: 16GB, used: 8.2GB, free: 6.5GB",
+    "disk": "total: 100GB, used: 45GB, available: 50GB"
+  }
+}
+```
+
+## Error Handling
+
+All API responses include a `success` field. When `success` is `false`, an `error` field provides details about what went wrong.
+
+Common error scenarios:
+
+- Missing or invalid authentication (HTTP 401)
+- Missing required parameters (HTTP 400)
+- Server/container not found
+- File system errors
+- Docker API errors
+- Permission denied for file operations
+
+Example error response:
 
 ```json
 {
   "success": false,
-  "error": "Error description"
+  "error": "Server minecraft-001 not found"
 }
 ```
 
-**Common HTTP Status Codes:**
-- `400 Bad Request` - Invalid request format
-- `401 Unauthorized` - Missing or invalid authentication
-- `404 Not Found` - Endpoint not found
-- `405 Method Not Allowed` - Invalid HTTP method
-- `500 Internal Server Error` - Server error
+## Security Considerations
 
-## WebSocket Communication
-
-The agent maintains a WebSocket connection to the panel for real-time communication. This is used for:
-
-- Live status updates
-- Real-time command execution
-- Event streaming
-- Connection monitoring
-
-**Connection URL:** `ws://panel-host:8080`
-**Authentication:** Bearer token in connection headers
-
-## CORS Support
-
-The API includes CORS headers for browser-based requests:
-
-- `Access-Control-Allow-Origin: *`
-- `Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS`
-- `Access-Control-Allow-Headers: Content-Type, Authorization, X-API-Key`
+- All file operations are restricted to the `/opt/gameservers/{serverId}` directory
+- Path traversal attacks are prevented by validating paths
+- Authentication is required for all API calls
+- File uploads are limited and validated
 
 ## Rate Limiting
 
-Currently, no rate limiting is implemented. In production deployments, consider implementing rate limiting at the reverse proxy level.
+Currently, no rate limiting is implemented, but it may be added in future versions for production deployments.
 
-## Security Considerations
+## WebSocket Integration
 
-1. **Authentication Required**: All API endpoints require valid authentication
-2. **HTTPS Recommended**: Use HTTPS in production deployments
-3. **Secret Management**: Store agent secrets securely
-4. **Network Security**: Restrict access to agent ports
-5. **Container Security**: Ensure Docker daemon security
-
-## Examples
-
-### cURL Examples
-
-```bash
-# Health check
-curl -s http://localhost:8081/health
-
-# Ping test
-curl -s -H "X-API-Key: agent-secret" \
-     -H "Content-Type: application/json" \
-     -X POST http://localhost:8081/api/command \
-     -d '{"action":"system.ping","data":{}}'
-
-# List containers
-curl -s -H "X-API-Key: agent-secret" \
-     -H "Content-Type: application/json" \
-     -X POST http://localhost:8081/api/command \
-     -d '{"action":"docker.list","data":{}}'
-
-# Start container
-curl -s -H "X-API-Key: agent-secret" \
-     -H "Content-Type: application/json" \
-     -X POST http://localhost:8081/api/command \
-     -d '{"action":"docker.start","data":{"containerId":"container_name"}}'
-```
-
-### JavaScript Examples
-
-```javascript
-// Using fetch API
-const response = await fetch('http://localhost:8081/api/command', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'X-API-Key': 'agent-secret'
-  },
-  body: JSON.stringify({
-    action: 'system.ping',
-    data: {}
-  })
-});
-
-const result = await response.json();
-console.log(result);
-```
+The agent maintains a WebSocket connection to the Ctrl-Alt-Play Panel for real-time communication. The WebSocket uses the same authentication mechanism and command format as the HTTP API.
