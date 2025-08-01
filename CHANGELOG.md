@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2025-08-01
+
+### Added
+
+- **Enhanced Documentation**: Updated project documentation and architecture details
+- **Version Consistency**: Synchronized versioning across all project files
+
+### Changed
+
+- **Build System**: Improved build and test reliability
+- **Project Structure**: Better organization of documentation and version files
+
+### Fixed
+
+- **Build Issues**: Resolved compilation and test failures
+- **Documentation**: Updated version references and project status
+
 ## [1.1.0] - 2025-07-25
 
 ### Added

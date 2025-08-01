@@ -1,6 +1,6 @@
 {
   "name": "ctrl-alt-play-agent",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A lightweight, high-performance remote game server management agent for Ctrl-Alt-Play Panel",
   "main": "cmd/agent/main.go",
   "repository": {
